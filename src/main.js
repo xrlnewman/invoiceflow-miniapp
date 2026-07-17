@@ -52,8 +52,8 @@ function displayTime(value) {
 function appointmentAction(status) {
   switch (status) {
     case '待确认': return { action: 'checkin', label: '立即确认' }
-    case '已确认': return { action: 'waiting', label: '进入候诊' }
-    case '候诊中': return { action: 'serving', label: '开始处理' }
+    case '已确认': return { action: 'waiting', label: '进入回款队列' }
+    case '候诊中': return { action: 'serving', label: '开始对账' }
     case '处理中': return { action: 'complete-appointment', label: '完成处理' }
     default: return null
   }
@@ -154,7 +154,7 @@ async function refreshFromApi() {
   }
   dataSource = synced ? '接口数据' : '演示数据'
   render()
-  showToast(synced ? '已同步最新发票与回访' : '服务暂不可用，继续使用演示数据')
+  showToast(synced ? '已同步最新发票与跟进' : '服务暂不可用，继续使用演示数据')
 }
 
 async function createAppointment() {
