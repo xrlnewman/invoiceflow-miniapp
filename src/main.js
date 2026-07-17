@@ -15,8 +15,12 @@ const demoFollowups = [
   { id: 'TASK-0715-006', patientId: 'CUS-001', patient: '苏州云杉供应链', summary: '跟进客户回款凭证', dueAt: '明天 10:00', status: '待完成' },
 ]
 
+const demoInvoices = [{ id: 'INV-202607-082', customerName: '杭州星河科技', amountCents: 128000, paidCents: 64000, status: '部分回款', dueDate: '07/20', events: [{ toStatus: '已开具', actor: '林然', createdAt: '今天 09:10' }, { toStatus: '部分回款', actor: '客户', createdAt: '今天 11:30' }] }, { id: 'INV-202607-079', customerName: '苏州云杉供应链', amountCents: 86000, paidCents: 0, status: '已开具', dueDate: '07/25', events: [{ toStatus: '已开具', actor: '沈宁', createdAt: '昨天 16:00' }] }]
+
 let appointments = [...demoAppointments]
 let followups = [...demoFollowups]
+let invoices = demoInvoices.map((item) => ({ ...item }))
+let selectedInvoice = null
 let dataSource = '演示数据'
 const busyActions = new Set()
 
@@ -82,6 +86,15 @@ function renderFollowup(followup) {
   </article>`
 }
 
+function invoiceMoney(cents) { return `¥${(Number(cents || 0) / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` }
+function renderInvoiceCard(invoice) {
+  return `<article class="invoice-card"><div><strong>${escapeHtml(invoice.id)}</strong><p>${escapeHtml(invoice.customerName)} · 应收 ${invoiceMoney(invoice.amountCents)}</p></div><span class="tag ${statusClass(invoice.status)}">${escapeHtml(invoice.status)}</span><button data-action="open-invoice" data-id="${escapeHtml(invoice.id)}">发票明细　→</button></article>`
+}
+function renderInvoiceDetail() {
+  if (!selectedInvoice) return '<div class="empty">选择一张发票查看详情、回款时间线和核销操作</div>'
+  return `<article class="invoice-detail"><div class="section-head"><h3>发票明细</h3><span class="tag ${statusClass(selectedInvoice.status)}">${escapeHtml(selectedInvoice.status)}</span></div><p>${escapeHtml(selectedInvoice.customerName)} · ${escapeHtml(selectedInvoice.id)}</p><div class="invoice-summary"><strong>应收 ${invoiceMoney(selectedInvoice.amountCents)}</strong><span>已回款 ${invoiceMoney(selectedInvoice.paidCents)}</span></div><div class="invoice-actions"><button class="visit-action" data-action="invoice-payment" data-id="${escapeHtml(selectedInvoice.id)}">登记回款</button><button class="visit-action" data-action="invoice-reconcile" data-id="${escapeHtml(selectedInvoice.id)}">核销</button></div><h4>回款时间线</h4><div class="invoice-timeline">${(selectedInvoice.events || []).map((event) => `<p><b>${escapeHtml(event.toStatus || event.type)}</b><small>${escapeHtml(event.actor || '系统')} · ${escapeHtml(event.createdAt || '--')}</small></p>`).join('')}</div></article>`
+}
+
 function render() {
   app.innerHTML = `<main class="app">
     <header>
@@ -96,6 +109,9 @@ function render() {
     </section>
     <div class="section-head"><h3>我的发票 <small>${appointments.length} 条</small></h3><a data-action="refresh">同步 →</a></div>
     <section class="visits">${appointments.length ? appointments.map(renderAppointment).join('') : '<div class="empty">暂时没有发票，点击上方发票申请创建一条</div>'}</section>
+    <div class="section-head"><h3>收款工作台 <small>${invoices.length} 张</small></h3><a data-action="refresh">同步 →</a></div>
+    <section class="invoice-list">${invoices.map(renderInvoiceCard).join('')}</section>
+    <section class="invoice-detail-wrap">${renderInvoiceDetail()}</section>
     <div class="section-head"><h3>跟进任务 <small class="coral">${followups.filter((item) => item.status !== '已完成').length} 条待办</small></h3><a data-action="refresh">查看 →</a></div>
     <section class="reminders">${followups.length ? followups.slice(0, 3).map(renderFollowup).join('') : '<div class="empty">暂无跟进任务</div>'}</section>
     <nav><button class="active">⌂<small>首页</small></button><button data-action="create-appointment">＋<small>发票</small></button><button data-action="refresh">◷<small>回款</small></button><button data-action="create-followup">✓<small>跟进</small></button></nav>
@@ -140,6 +156,7 @@ async function refreshFromApi() {
   const results = await Promise.allSettled([
     api.listAppointments({ page: 1, pageSize: 20 }),
     api.listFollowups({ page: 1, pageSize: 20 }),
+    api.listInvoices({ page: 1, pageSize: 20 }),
   ])
   let synced = 0
   const appointmentsResult = results[0]
@@ -150,6 +167,11 @@ async function refreshFromApi() {
   const followupsResult = results[1]
   if (followupsResult.status === 'fulfilled' && Array.isArray(followupsResult.value?.list)) {
     followups = followupsResult.value.list
+    synced += 1
+  }
+  const invoicesResult = results[2]
+  if (invoicesResult.status === 'fulfilled' && Array.isArray(invoicesResult.value?.list)) {
+    invoices = invoicesResult.value.list
     synced += 1
   }
   dataSource = synced ? '接口数据' : '演示数据'
@@ -228,6 +250,21 @@ async function completeFollowup(id) {
   }
 }
 
+async function openInvoice(id) {
+  try { selectedInvoice = await api.getInvoice(id); dataSource = '接口数据' } catch { selectedInvoice = invoices.find((item) => item.id === id) || null; dataSource = '演示数据'; showToast('详情接口暂不可用，展示演示数据') }
+  render()
+}
+
+async function invoicePayment(id) {
+  const invoice = invoices.find((item) => item.id === id) || selectedInvoice
+  if (!invoice) return
+  try { await api.addInvoicePayment(id, { amountCents: Math.max(1, Number(invoice.amountCents || 0) - Number(invoice.paidCents || 0)), method: '银行转账', reference: `MINI-${id}` }); selectedInvoice = await api.getInvoice(id); invoices = invoices.map((item) => item.id === id ? selectedInvoice : item); dataSource = '接口数据'; render(); showToast('回款已登记') } catch { showToast('登记回款失败，请稍后重试') }
+}
+
+async function invoiceReconcile(id) {
+  try { await api.reconcileInvoice(id, '客户'); selectedInvoice = await api.getInvoice(id); invoices = invoices.map((item) => item.id === id ? selectedInvoice : item); dataSource = '接口数据'; render(); showToast('发票已核销') } catch { showToast('核销失败，请先确认回款已到账') }
+}
+
 async function handleAction(action, id) {
   const key = `${action}:${id ?? ''}`
   if (busyActions.has(key)) return
@@ -240,6 +277,9 @@ async function handleAction(action, id) {
     if (action === 'create-followup') await createFollowup()
     if (['checkin', 'waiting', 'serving', 'complete-appointment'].includes(action)) await transitionAppointment(id, action)
     if (action === 'complete-followup') await completeFollowup(id)
+    if (action === 'open-invoice') await openInvoice(id)
+    if (action === 'invoice-payment') await invoicePayment(id)
+    if (action === 'invoice-reconcile') await invoiceReconcile(id)
   } finally {
     busyActions.delete(key)
   }

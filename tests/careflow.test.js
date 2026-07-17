@@ -16,3 +16,5 @@ test('Vite proxies the default API path to the local InvoiceFlow service', async
   assert.match(source,/proxy/)
   assert.match(source,/localhost:8080/)
 })
+
+test('InvoiceFlow miniapp shows invoice detail timeline and collection actions', async()=>{const source=await readFile(new URL('../src/main.js',import.meta.url),'utf8'); assert.match(source,/发票明细/); assert.match(source,/回款时间线/); assert.match(source,/登记回款/); assert.match(source,/核销/)})

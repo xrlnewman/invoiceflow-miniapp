@@ -96,3 +96,14 @@ test('非零响应会抛错，调用方可以保留演示数据', async () => {
 
   await assert.rejects(() => client.updateAppointmentStatus('AP-1', '候诊中'), /状态不可推进/)
 })
+
+test('发票详情、登记回款和核销走后端闭环契约', async () => {
+  const urls = []
+  const client = createApiClient({ fetchImpl: async (url) => { urls.push(url); return response({ id: 'INV-1', status: '已开具' }) } })
+  await client.listInvoices({ page: 1, pageSize: 10 })
+  await client.getInvoice('INV-1')
+  await client.createInvoice({ customerName: '星河科技', amountCents: 1000 })
+  await client.addInvoicePayment('INV-1', { amountCents: 1000, method: '银行转账' })
+  await client.reconcileInvoice('INV-1')
+  assert.deepEqual(urls, ['/api/v1/invoices?page=1&pageSize=10', '/api/v1/invoices/INV-1', '/api/v1/invoices', '/api/v1/invoices/INV-1/payments', '/api/v1/invoices/INV-1/reconcile'])
+})
