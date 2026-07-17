@@ -1,5 +1,5 @@
 import test from 'node:test'; import assert from 'node:assert/strict'; import { readFile } from 'node:fs/promises'
-test('InvoiceFlow miniapp renders appointment and reminder cards', async()=>{const source=await readFile(new URL('../src/main.js',import.meta.url),'utf8'); assert.match(source,/发票申请/); assert.match(source,/我的发票/); assert.match(source,/林负责人/)})
+test('InvoiceFlow miniapp renders invoice and collection cards', async()=>{const source=await readFile(new URL('../src/main.js',import.meta.url),'utf8'); assert.match(source,/发票申请/); assert.match(source,/我的发票/); assert.match(source,/财务专员/)})
 
 test('InvoiceFlow actions are wired to the real appointment and follow-up client', async()=>{
   const source=await readFile(new URL('../src/main.js',import.meta.url),'utf8')
