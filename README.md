@@ -1,6 +1,6 @@
 # InvoiceFlow Miniapp
 
-免费开源的发票收款运营移动端，覆盖发票申请、确认、候诊、处理状态、业务档案和复诊任务。演示数据均为虚构，不涉及诊断、处方、支付或真实客户隐私。
+发票收款运营移动端，覆盖客户抬头、开票申请、审核进度、收款登记、余额查看和回款提醒。演示数据均为虚构，不接入真实财务或客户隐私。
 
 ## 本地运行
 
@@ -15,7 +15,7 @@ npm run dev
 VITE_API_PROXY_TARGET=http://localhost:8088 npm run dev
 ```
 
-## API 闭环
+## API 与状态同步
 
 页面默认请求 `/api/v1`，生产环境可通过 `VITE_API_BASE_URL` 指向独立的 InvoiceFlow API 服务。所有写操作会自动生成 `Idempotency-Key`，避免重复发票、重复确认和重复完成回访。
 
@@ -33,7 +33,7 @@ npm test
 npm run build
 ```
 
-## 产品边界
+## 运行范围
 
-InvoiceFlow 移动端是免费开源的 发票收款体验端，与对应 Admin/API 通过同一套幂等接口联动。
+InvoiceFlow 移动端与对应 Admin/API 通过同一套幂等接口联动，销售和财务可在移动端完成申请、回款登记和进度跟进。
 
